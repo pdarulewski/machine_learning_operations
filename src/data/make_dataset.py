@@ -1,9 +1,30 @@
 # -*- coding: utf-8 -*-
 import logging
+import os
 from pathlib import Path
 
 import click
 from dotenv import find_dotenv, load_dotenv
+from torch.utils import data
+from torchvision import datasets
+from torchvision.transforms import transforms
+
+from src.settings import DATA_PATH
+
+
+def get_mnist_data(train: bool = False):
+    transform = transforms.Compose([
+        transforms.ToTensor(),
+        transforms.Normalize((0.5,), (0.5,))]
+    )
+
+    dataset = datasets.MNIST(
+        os.path.join(DATA_PATH),
+        download=True, train=train, transform=transform
+    )
+    data_loader = data.DataLoader(dataset, batch_size=64, shuffle=True)
+
+    return data_loader
 
 
 @click.command()
@@ -15,6 +36,9 @@ def main(input_filepath, output_filepath):
     """
     logger = logging.getLogger(__name__)
     logger.info('making final data set from raw data')
+
+    get_mnist_data(train=True)
+    get_mnist_data(train=False)
 
 
 if __name__ == '__main__':
@@ -28,4 +52,4 @@ if __name__ == '__main__':
     # load up the .env entries as environment variables
     load_dotenv(find_dotenv())
 
-    main()
+    main('', '')
