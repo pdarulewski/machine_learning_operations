@@ -1,3 +1,4 @@
+import torch
 import torch.nn.functional as F
 from torch import nn
 
@@ -22,7 +23,9 @@ class Classifier(nn.Module):
             nn.Linear(in_features=64, out_features=10)
         )
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor):
+        if x.ndim != 4:
+            raise ValueError('Expected input to a 4D tensor')
         x = self.cnn_layers(x)
         x = x.view(x.size(0), -1)
         x = self.linear_layers(x)

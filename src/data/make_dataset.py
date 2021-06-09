@@ -22,9 +22,12 @@ def get_mnist_data(train: bool = False):
         os.path.join(DATA_PATH),
         download=True, train=train, transform=transform
     )
-    data_loader = data.DataLoader(dataset, batch_size=64, shuffle=True)
 
-    return data_loader
+    return dataset
+
+
+def get_data_loader(dataset, batch_size=64):
+    return data.DataLoader(dataset, batch_size=batch_size, shuffle=True)
 
 
 @click.command()

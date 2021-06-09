@@ -3,20 +3,25 @@ from typing import Tuple
 import torch
 from torch import nn
 from torch.utils import data
+from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 
 
 class ModelHandler:
 
-    @staticmethod
+    def __init__(self):
+        self.running_loss_list, self.accuracy_list, self.test_loss_list = [], [], []
+        self.writer = SummaryWriter()
+
     def validation(
+        self,
         model: nn.Module,
         test_loader: data.DataLoader,
         criterion
     ) -> Tuple[float, float]:
+        model.eval()
+        accuracy, test_loss = 0, 0
 
-        accuracy = 0
-        test_loss = 0
         i = 0
         with tqdm(
             total=len(test_loader.dataset),
@@ -32,15 +37,18 @@ class ModelHandler:
                 equality = (labels.data == ps.max(1)[1])
                 accuracy += equality.type_as(torch.FloatTensor()).mean()
 
+                test_loss_actual = test_loss / len(test_loader)
+                accuracy_actual = accuracy / len(test_loader)
+
                 pbar.set_postfix({
-                    'Test Loss'    : f'{test_loss / len(test_loader):.3f}',
-                    'Test Accuracy': f'{accuracy / len(test_loader):.3f}',
+                    'Test Loss'    : f'{test_loss_actual:.3f}',
+                    'Test Accuracy': f'{accuracy_actual:.3f}',
                 })
 
                 pbar.update(images.shape[0])
                 i += 1
-
-        return test_loss, accuracy
+        model.train()
+        return accuracy, test_loss
 
     def train(
         self,
@@ -49,13 +57,15 @@ class ModelHandler:
         test_loader: data.DataLoader,
         criterion,
         optimizer,
-        epochs: int = 5,
+        epochs: int = 1,
         print_every: int = 40
     ) -> None:
 
         running_loss = 0
         for epoch in range(epochs):
             model.train()
+
+            epoch_loss = 0
 
             with tqdm(
                 total=len(train_loader.dataset),
@@ -72,20 +82,23 @@ class ModelHandler:
 
                     running_loss += loss.item()
 
-                    if i % print_every == 0:
-                        model.eval()
+                    with torch.no_grad():
+                        test_loss, accuracy = self.validation(model, test_loader, criterion)
 
-                        with torch.no_grad():
-                            test_loss, accuracy = self.validation(model, test_loader, criterion)
-
-                        running_loss = 0
-
-                        model.train()
+                    self.writer.add_scalar('Loss/train', running_loss, i)
 
                     pbar.set_postfix({
-                        'Training loss': f'{running_loss / print_every:.3f}',
+                        'Training loss': f'{running_loss:.3f}',
                         'Test Loss'    : f'{test_loss / len(test_loader):.3f}',
                         'Test Accuracy': f'{accuracy / len(test_loader):.3f}',
                     })
-
                     pbar.update(images.shape[0])
+                    epoch_loss += running_loss
+                    running_loss = 0
+
+                self.writer.add_scalar('Loss/test', test_loss / len(test_loader), i)
+                self.writer.add_scalar('Accuracy/test', accuracy / len(test_loader), i)
+
+            self.running_loss_list.append(epoch_loss / print_every)
+            self.test_loss_list.append(test_loss / len(test_loader))
+            self.accuracy_list.append(accuracy / len(test_loader))
