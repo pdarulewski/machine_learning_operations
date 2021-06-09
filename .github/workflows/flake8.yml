@@ -33,7 +33,7 @@ jobs:
           pip install -r requirements.txt
       #        pip install -r requirements_tests.txt
 
-      - name: Test with pytest
+      - name: Run flake8
         run: |
-          pip install pytest
-          pytest -v
+          pip install flake8
+          flake src/
